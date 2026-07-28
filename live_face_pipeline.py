@@ -145,9 +145,11 @@ def get_parser():
                         help='average the last N good-quality embeddings of a track before the gallery lookup '
                              '(rolling window) instead of matching on a single frame -- damps single-frame noise '
                              'that can otherwise push a correct identity just under its threshold')
-    parser.add_argument('--pose_threshold', type=float, default=0.4,
+    parser.add_argument('--pose_threshold', type=float, default=0.15,
                         help='minimum frontal-pose symmetry score (0=profile, 1=dead-on frontal) from the 5-point '
-                             'landmarks (eyes/nose/mouth-corners); more angled faces skip recognition entirely')
+                             'landmarks (eyes/nose/mouth-corners); more angled faces skip recognition entirely '
+                             '(lowered from 0.4: measured on real OffAngle-rejected crops, e.g. "looking down at '
+                             'monitor" posture, 3/4 would have correctly matched at 0.15)')
     parser.add_argument('--landmark_conf_threshold', type=float, default=0.5,
                         help='minimum mean confidence of the 5 landmark points. Catches false-positive "face" '
                              'detections on non-face objects (measured ~0.25-0.4 on a bag/chair in testing) that '
