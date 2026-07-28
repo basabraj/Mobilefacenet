@@ -60,6 +60,15 @@ against a `enrolled_faces/<name>/*.jpg` gallery cached in LanceDB.
   bundled YOLO variant trained with 5-point landmarks; plain bbox-only weights won't give
   alignment or the frontal-pose/landmark-confidence quality gates).
 
+### Camera configuration
+
+RTSP connection settings (camera URL/credentials, jitterbuffer latency) live in
+**[`camera.config`](camera.config)** (INI format) — edit that one file to point at a different
+camera. Both `live_face_pipeline.py` and `RTSP_correct.py` read their defaults from it via
+`configparser`, so credentials aren't duplicated across scripts. The `RTSP_URL` env var, or the
+`--rtsp_url` / `--latency` CLI flags, override whatever is set there if you need a one-off change
+without editing the file.
+
 ### Enrollment
 
 Add reference photos per person under `enrolled_faces/<name>/*.jpg` (see

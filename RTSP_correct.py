@@ -1,12 +1,17 @@
+import os
+import configparser
+
 import gi
 
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GLib
 
+_camera_cfg = configparser.ConfigParser(interpolation=None)
+_camera_cfg.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'camera.config'))
+RTSP_URL = _camera_cfg.get('camera', 'rtsp_url')
+LATENCY_MS = _camera_cfg.getint('camera', 'latency_ms')
 
 Gst.init(None)
-
-RTSP_URL = "rtsp://admin:Digital%40123@192.168.96.83:554/live1.sdp"
 
 pipeline_in = Gst.Pipeline.new("pipeline")
 
@@ -18,7 +23,7 @@ convert = Gst.ElementFactory.make("videoconvert", "convert")
 sink    = Gst.ElementFactory.make("autovideosink","sink")
 
 source.set_property("location", RTSP_URL)
-source.set_property("latency", 200)
+source.set_property("latency", LATENCY_MS)
 sink.set_property("sync", False)
 
 for element in [source, depay, parser, decoder, convert, sink]:

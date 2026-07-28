@@ -11,9 +11,9 @@ Note: yolov8n-face.pt is the only bundled face-detector weight trained with a
 pose/keypoint head (5-point landmarks). The v11/v12 face weights in face_models/
 are plain bbox-only detectors, so this pipeline is pinned to yolov8n-face.pt.
 
-RTSP credentials are read from the RTSP_URL env var. Falls back to the
-camera already hardcoded in RTSP_correct.py for convenience, but prefer
-setting the env var so credentials aren't duplicated in source.
+Camera connection settings (RTSP URL, latency) live in camera.config --
+edit that file to point at a different camera. The RTSP_URL env var, or the
+--rtsp_url / --latency CLI flags, override it if set.
 '''
 
 import os
@@ -23,6 +23,7 @@ import glob
 import hashlib
 import argparse
 import datetime
+import configparser
 
 # --- Windows: make the GStreamer DLLs / typelibs discoverable before `import gi` ---
 if os.name == 'nt':
@@ -60,7 +61,12 @@ tf1 = tf.compat.v1
 tf1.disable_eager_execution()
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_RTSP_URL = 'rtsp://admin:Digital%40123@192.168.96.83:554/live1.sdp'
+
+_camera_cfg = configparser.ConfigParser(interpolation=None)
+_camera_cfg.read(os.path.join(SCRIPT_DIR, 'camera.config'))
+DEFAULT_RTSP_URL = _camera_cfg.get('camera', 'rtsp_url')
+DEFAULT_LATENCY_MS = _camera_cfg.getint('camera', 'latency_ms')
+
 DEFAULT_FACENET_PB = os.path.join(SCRIPT_DIR, 'arch', 'pretrained_model', 'MobileFaceNet_9925_9680.pb')
 DEFAULT_YOLO_WEIGHTS = os.path.join(SCRIPT_DIR, 'face_models', 'yolov8n-face.pt')
 DEFAULT_SAVE_DIR = os.path.join(SCRIPT_DIR, 'detected_faces')
@@ -75,11 +81,13 @@ EMBEDDING_DIM = 128
 def get_parser():
     parser = argparse.ArgumentParser(description='Live RTSP face detect + MobileFaceNet embedding')
     parser.add_argument('--rtsp_url', default=os.environ.get('RTSP_URL', DEFAULT_RTSP_URL),
-                        help='RTSP camera URL (prefer setting RTSP_URL env var instead)')
+                        help='RTSP camera URL (default comes from camera_config.py; prefer editing that file, or '
+                             'the RTSP_URL env var, over this flag)')
     parser.add_argument('--facenet_pb', default=DEFAULT_FACENET_PB, help='frozen MobileFaceNet .pb path')
     parser.add_argument('--yolo_weights', default=DEFAULT_YOLO_WEIGHTS, help='YOLO face detector weights path')
     parser.add_argument('--conf', type=float, default=0.5, help='YOLO face detection confidence threshold')
-    parser.add_argument('--latency', type=int, default=200, help='rtspsrc jitterbuffer latency (ms)')
+    parser.add_argument('--latency', type=int, default=DEFAULT_LATENCY_MS,
+                        help='rtspsrc jitterbuffer latency (ms); default comes from camera_config.py')
     parser.add_argument('--frame_skip', type=int, default=0,
                         help='process every (frame_skip + 1)-th frame; higher = faster but choppier')
     parser.add_argument('--max_seconds', type=float, default=0,
