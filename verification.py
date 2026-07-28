@@ -208,7 +208,7 @@ def test(data_set, sess, embedding_tensor, batch_size, label_shape=None, feed_di
         embeddings = None
         feed_dict.setdefault(input_placeholder, None)
         for idx, data in enumerate(data_iter(datas, batch_size)):
-            data_tmp = data.copy()    # fix issues #4
+            data_tmp = data.copy()    
             data_tmp -= 127.5
             data_tmp *= 0.0078125
             feed_dict[input_placeholder] = data_tmp
@@ -259,3 +259,8 @@ def ver_test(ver_list, ver_name_list, nbatch, sess, embedding_tensor, batch_size
         print('[%s][%d]Accuracy-Flip: %1.5f+-%1.5f' % (ver_name_list[i], nbatch, acc2, std2))
         results.append(acc2)
     return results
+
+
+
+
+    

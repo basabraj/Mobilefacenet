@@ -40,6 +40,60 @@ Tensorflow implementation for MobileFaceNet.
 | ------ | ------ | ----------- | --------------------- |
 |  5.7M  |  99.4+ |    98.4+    |          260-         |
 
+## Live RTSP face recognition (`live_face_pipeline.py`)
+
+A standalone live face detection + recognition pipeline built on top of the pretrained
+MobileFaceNet model, for real-time RTSP camera streams (not part of the original repo).
+
+Pipeline: GStreamer (rtspsrc/H.265) → appsink → YOLOv8n-face detector (box + 5-point
+landmarks) → IoU tracker → quality/pose/landmark-confidence gate → 112×112 similarity
+alignment → MobileFaceNet embedding → per-person calibrated cosine-similarity match
+against a `enrolled_faces/<name>/*.jpg` gallery cached in LanceDB.
+
+### Setup
+
+- GStreamer 1.0 (with the `msvc_x86_64` runtime + `gst-python`/PyGObject bindings) installed
+  and discoverable — see the `GSTREAMER_BIN` fallback paths at the top of the script.
+- Python deps beyond the base list above: `ultralytics`, `lancedb`, `pandas`, `pyarrow`, `gi`
+  (PyGObject).
+- A face-detector weight with a pose/keypoint head at `face_models/yolov8n-face.pt` (the only
+  bundled YOLO variant trained with 5-point landmarks; plain bbox-only weights won't give
+  alignment or the frontal-pose/landmark-confidence quality gates).
+
+### Enrollment
+
+Add reference photos per person under `enrolled_faces/<name>/*.jpg` (see
+`enrolled_faces/README.md`). A few photos per person, front-facing and reasonably sharp, work
+best. `enrolled_faces/<name>/` folder names become the recognized labels.
+
+### Running
+
+```
+python live_face_pipeline.py                      # live window, RTSP_URL env var or --rtsp_url
+python live_face_pipeline.py --headless --max_seconds 30   # no GUI, timed test run
+```
+
+Detected faces are saved under `detected_faces/<label>/`, where `<label>` is the recognized
+name or one of `Unknown` / `LowQuality` / `OffAngle` / `NotAFace` / `Tracking...` depending on
+which gate a given detection failed (or passed).
+
+### Key tunables (`--help` for the full list)
+
+| Flag | Purpose |
+| --- | --- |
+| `--conf` | YOLO face detection confidence |
+| `--min_face_pixels`, `--blur_threshold` | reject faces too small/blurry to embed reliably |
+| `--pose_threshold` | reject faces turned too far from frontal |
+| `--landmark_conf_threshold` | reject detections that don't actually look like a face (filters non-face false positives) |
+| `--track_skip_frames`, `--track_recheck_interval` | avoid recognizing a face the instant it appears (blurry entrance frames), and avoid re-running recognition every single frame |
+| `--recog_threshold`, `--recog_margin` | fallback match threshold + minimum score gap over the runner-up identity |
+| `--threshold_low`, `--threshold_high` | per-person calibrated threshold range (auto-derived per identity from how tightly their own enrolled photos cluster — see `calibrate_person_thresholds()`) |
+| `--gallery_db` | LanceDB cache directory; only new/changed enrolled photos are re-embedded on startup |
+
+Thresholds are gallery-specific: they're calibrated from whichever people are currently
+enrolled, so re-check them (`calibrate_person_thresholds()`, or just watch the
+`<name>: threshold=...` startup log lines) after adding or removing enrolled identities.
+
 ## References
 
 1. [facenet](https://github.com/davidsandberg/facenet)
